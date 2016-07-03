@@ -2,4 +2,4 @@
 Presentation for Advanced py.test usage talk
 
 
-Open http://asvetlov.github.io/pytest-lviv/
+Open http://asvetlov.github.io/pytest-moscow/
