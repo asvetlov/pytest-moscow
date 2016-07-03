@@ -273,7 +273,9 @@ def transaction(db):
        db.commit()
     except:
        db.rollback()
+            </code></pre>
 
+            <pre class="fragment"><code>
 def test_b(transaction):
     transaction.execute("INSERT INTO tbl(name) VALUES ('John')")
     raise RuntimeError("Error text")
@@ -375,7 +377,7 @@ def redis_server(unused_port, session_id, docker):
         host_config=docker.create_host_config(
             port_bindings={6379: port}))
     docker.start(container=container['Id'])
-    ping_redis(port)
+    ping_redis(port)  # N.B.
     container['redis_port'] = port
     yield container
     docker.kill(container=container['Id'])
@@ -511,7 +513,7 @@ def pytest_generate_tests(metafunc):
             tags = ['2.8', '3.0', '3.2']
         else:
             tags = list(tags)
-        metafunc.parametrize("redis_versions", tags, scope='session')
+        metafunc.parametrize("redis_version", tags, scope='session')
             </code></pre>
           </section>
           <section>
