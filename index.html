@@ -408,8 +408,8 @@ def redis_client(redis_server):
     client = redis.StrictRedis(host='127.0.0.1',
                                port=redis_server['redis_port'],
                                db=0)
-    client.flushdb()
     yield client
+    client.flushdb()
     client.close()
             </code></pre>
           </section>
