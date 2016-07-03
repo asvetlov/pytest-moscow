@@ -155,8 +155,10 @@ def test(fixture_a, fixture_b):
 @pytest.yield_fixture
 def opened_file():
     f = open("filename")
-    yield f
-    f.close()
+    try:
+        yield f
+    finally:
+        f.close()
             </code></pre>
             <pre class="fragment"><code>
 def test_a(opened_file):
@@ -343,17 +345,17 @@ def fixture_a():
             <h2> Unique ID and docker client</h2>
             <pre><code>
 import docker as libdocker
-import socket
-import uuid
 
 @pytest.fixture(scope='session')
 def session_id():
     return str(uuid.uuid4())
-@pytest.yield_fixture(scope='session')
+@pytest.fixture(scope='session')
 def unused_port():
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(('127.0.0.1', 0))
-        yield s.getsockname()[1]
+    def f():
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind(('127.0.0.1', 0))
+            return s.getsockname()[1]
+    return f
 @pytest.fixture(scope='session')
 def docker():
     return libdocker.Client(version='auto')
@@ -369,14 +371,33 @@ def redis_server(unused_port, session_id, docker):
     container = docker.create_container(
         image='redis',
         name='test-redis-{}'.format(session_id),
-        ports=[6379],
-        detach=True,
+        ports=[6379], detach=True,
         host_config=docker.create_host_config(
             port_bindings={6379: port}))
     docker.start(container=container['Id'])
-    yield port
+    ping_redis(port)
+    container['redis_port'] = port
+    yield container
     docker.kill(container=container['Id'])
     docker.remove_container(container['Id'])
+            </code></pre>
+          </section>
+          <section>
+            <h2>Ping Redis</h2>
+            <pre><code>
+def ping_redis(port)
+    timeout = 0.001
+    for i in range(100):
+        try:
+            client = redis.StrictRedis(host='127.0.0.1',
+                                       port=port, db=0)
+        except redis.ConnectionError:
+            time.sleep(timeout)
+            timeout *= 2
+        else:
+            client.close()
+    else:
+        raise RuntimeError("Cannot connect to redis")
             </code></pre>
           </section>
           <section>
@@ -384,16 +405,12 @@ def redis_server(unused_port, session_id, docker):
             <pre><code>
 @pytest.yield_fixture
 def redis_client(redis_server):
-    for i in range(100):
-        try:
-            client = redis.StrictRedis(host='127.0.0.1',
-                                       port=port, db=0)
-            client.flushall()
-        except redis.ConnectionError:
-            time.sleep(0.01)
-        else:
-            yield client
-            client.close()
+    client = redis.StrictRedis(host='127.0.0.1',
+                               port=redis_server['redis_port'],
+                               db=0)
+    client.flushdb()
+    yield client
+    client.close()
             </code></pre>
           </section>
 
@@ -484,14 +501,14 @@ def pytest_addoption(parser):
     parser.addoption("--redis_version", action="append", default=[],
                      help=("Redis server versions. "
                            "May be used several times. "
-                           "Available values: 2.8, 3.0, all"))
+                           "Available values: 2.8, 3.0, 3.2 all"))
 def pytest_generate_tests(metafunc):
     if 'redis_version' in metafunc.fixturenames:
         tags = set(metafunc.config.option.redis_version)
         if not tags:
-            tags = ['3.0']
+            tags = ['3.2']
         elif 'all' in tags:
-            tags = ['2.8', '3.0']
+            tags = ['2.8', '3.0', '3.2']
         else:
             tags = list(tags)
         metafunc.parametrize("redis_versions", tags, scope='session')
