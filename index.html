@@ -40,7 +40,7 @@
             <p>
               <small>http://asvetlov.blogspot.com</small><br>
               <small>andrew.svetlov@gmail.com</small><br>
-              <small>http://asvetlov.github.io/pytest-lviv</small>
+              <small>http://asvetlov.github.io/pytest-moscow</small>
             </p>
           </p>
         </section>
@@ -50,6 +50,8 @@
             using py.test anyway...&rdquo;
           </blockquote>
           <p>Guido van Rossum</p>
+        </section>
+        <section data-background="magic-015.jpg" data-background-size="60%">
         </section>
         <section>
           <section>
@@ -63,7 +65,7 @@
 import pytest
 
 def test_a():
-    assert 1 == 2
+    assert 1 != 2
 
 class TestB:
     def test_b(self):
@@ -73,10 +75,6 @@ class TestB:
         with pytest.raises(ZeroDivisionError):
             1/0
             </code></pre>
-          </section>
-          <section>
-            <h2>Running</h2>
-            <pre><code>$ py.test -k "(a or B) and not c"</code></pre>
           </section>
         </section>
 
@@ -192,7 +190,7 @@ def test_a(open_file):
             <h1>Comparison with unittest</h1>
           </section>
           <section>
-            <h2>Monolitic test case</h2>
+            <h2>Monolithic test case</h2>
             <pre><code>
 class TestA(unittest.TestCase):
     def setUp(self):
@@ -254,12 +252,30 @@ def redis():
 
 @pytest.yield_fixture
 def db():
-    with sqlite.connect(':memory:') as db:
+    with sqlite3.connect(':memory:') as db:
         yield db
 
 def test_a(db, redis):
     db.execute(...)
     redis.set(...)
+            </code></pre>
+          </section>
+          <section>
+            <h2>Transactions</h2>
+            <pre><code>
+@pytest.yield_fixture
+def transaction(db):
+    cursor = db.cursor()
+    try:
+       yield cursor
+       db.commit()
+    except:
+       db.rollback()
+
+def test_b(transaction):
+    transaction.execute("INSERT INTO tbl(name) VALUES ('John')")
+    raise RuntimeError("Error text")
+    transaction.execute("INSERT INTO tbl(name) VALUES ('Mary')")
             </code></pre>
           </section>
         </section>
